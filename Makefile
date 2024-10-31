@@ -17,7 +17,7 @@ format: *.c
 
 
 test:
-	python tests/main.py
+	python3 tests/main.py
 
 kill:
 	sudo kill -9 $(sudo lsof -t -i:8203)
