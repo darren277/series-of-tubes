@@ -23,8 +23,25 @@ def test_post_with_xml_payload():
     print(r.text)
 
 
+def test_simple_service():
+    response = requests.get("http://127.0.0.1:8123/test")
+    print("Simple Service Response:", response.text)
+
+def test_nginx_service():
+    response = requests.get("http://localhost:8124/test")
+    print("Nginx Service Response:", response.text)
+
+def test_python_service():
+    data = {'key': 'value'}
+    response = requests.post("http://localhost:8125/test", json=data)
+    print("Python Service Response:", response.json())
+
+if __name__ == "__main__":
+    test_simple_service()
+    #test_nginx_service()
+    #test_python_service()
 
 #test_get()
 #test_query()
-test_post_with_json_payload()
+#test_post_with_json_payload()
 
