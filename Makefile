@@ -1,5 +1,5 @@
 main:
-	gcc -o main main.c
+	gcc -o main main.c -static
 
 main-dont-use-yet: main.c
 	gcc main.c -o main.o -c
@@ -21,3 +21,22 @@ test:
 
 kill:
 	sudo kill -9 $(sudo lsof -t -i:8203)
+
+
+simple:
+	docker-compose up --build -d simple
+
+nginx:
+	docker-compose up --build -d nginx
+
+python:
+	docker-compose up --build -d python
+
+up:
+	docker-compose up --build -d
+
+down:
+	docker-compose down
+
+simple-cli:
+	docker exec -it simple_service /bin/sh

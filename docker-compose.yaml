@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  simple:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    container_name: simple_service
+    networks:
+      - shared_network
+    volumes:
+      - logs:/logs
+    ports:
+      - "8123:8203"
+  
+  nginx:
+    image: openresty/openresty:latest
+    container_name: nginx_service
+    networks:
+      - shared_network
+    volumes:
+      - logs:/logs
+      - ./nginx/conf:/etc/nginx/conf.d
+    ports:
+      - "8124:8080"
+  
+  python:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: python_service
+    networks:
+      - shared_network
+    volumes:
+      - logs:/logs
+    ports:
+      - "8125:8080"
+
+networks:
+  shared_network:
+    driver: bridge
+
+volumes:
+  logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
