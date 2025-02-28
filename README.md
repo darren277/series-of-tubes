@@ -1,5 +1,7 @@
 # A Series of Tubes
 
+This is an exploratory project where I experiment with various HTTP mechanisms using `c`.
+
 ## How to Use
 
 ### For Running
