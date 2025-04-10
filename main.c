@@ -1,101 +1,87 @@
-// Server side C program to demonstrate Socket programming
+#include "include/server.h"
+#include "include/http_request.h"
+#include "include/platform.h"
 #include <stdio.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <netinet/in.h>
 #include <string.h>
 
 #define PORT 8203
+#define MAX_CONNECTIONS 10
+#define BUFFER_SIZE 30000
 
+void handle_request(int client_socket, const char* request_line) {
+    HttpRequest* request = parse_http_request(request_line);
+    if (!request) {
+        HttpResponse* error_response = create_response(400, "text/plain", "Bad Request");
+        send_response(client_socket, error_response);
+        free_response(error_response);
+        return;
+    }
 
-int parse(const char* line)
-{
-    /* Find out where everything is */
-    const char *start_of_path = strchr(line, ' ') + 1;
-    const char *start_of_query = strchr(start_of_path, '?');
-    const char *end_of_query = strchr(start_of_query, ' ');
+    // Example request handling - you can expand this with more sophisticated routing
+    if (strcmp(request->method, "GET") == 0) {
+        HttpResponse* response = create_response(200, "text/plain", "Hello, world!");
+        send_response(client_socket, response);
+        free_response(response);
+    } else {
+        HttpResponse* error_response = create_response(405, "text/plain", "Method Not Allowed");
+        send_response(client_socket, error_response);
+        free_response(error_response);
+    }
 
-    /* Get the right amount of memory */
-    char path[start_of_query - start_of_path];
-    char query[end_of_query - start_of_query];
-
-    /* Copy the strings into our memory */
-    strncpy(path, start_of_path,  start_of_query - start_of_path);
-    strncpy(query, start_of_query, end_of_query - start_of_query);
-
-    /* Null terminators (because strncpy does not provide them) */
-    path[sizeof(path)] = 0;
-    query[sizeof(query)] = 0;
-
-    /*Print */
-    printf("%s%ld\n", query, sizeof(query));
-    printf("%s%ld\n", path, sizeof(path));
+    free_http_request(request);
 }
 
+int main(int argc, char const *argv[]) {
+    if (platform_init() != 0) {
+        fprintf(stderr, "Failed to initialize platform\n");
+        return EXIT_FAILURE;
+    }
 
-int main(int argc, char const *argv[])
-{
-    int server_fd, new_socket; long valread;
-    struct sockaddr_in address;
-    int addrlen = sizeof(address);
-    
-    // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
-    {
-        perror("In socket");
-        exit(EXIT_FAILURE);
+    ServerConfig* config = init_server_config(PORT, MAX_CONNECTIONS);
+    if (!config) {
+        perror("Failed to initialize server config");
+        platform_cleanup();
+        return EXIT_FAILURE;
     }
-    
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
-    
-    memset(address.sin_zero, '\0', sizeof address.sin_zero);
-    
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address))<0)
-    {
-        perror("In bind");
-        exit(EXIT_FAILURE);
+
+    int server_fd = create_server_socket(config);
+    if (server_fd < 0) {
+        free(config);
+        platform_cleanup();
+        return EXIT_FAILURE;
     }
-    if (listen(server_fd, 10) < 0)
-    {
-        perror("In listen");
-        exit(EXIT_FAILURE);
-    }
-    while(1)
-    {
+
+    printf("Server listening on port %d\n", PORT);
+
+    while (1) {
         printf("\n+++++++ Waiting for new connection ++++++++\n\n");
-        if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0)
-        {
+        
+        struct sockaddr_in client_addr;
+        socklen_t client_len = sizeof(client_addr);
+        int client_socket = accept(server_fd, (struct sockaddr *)&client_addr, &client_len);
+        
+        if (client_socket < 0) {
             perror("In accept");
-            exit(EXIT_FAILURE);
+            continue;
         }
-        
-        char buffer[30000] = {0};
-        valread = read(new_socket, buffer, 30000);
-        printf("%s\n", buffer);
 
-        char *ch;
-        int i = 0;
-        ch = strtok(buffer, "\n");
-        while (ch != NULL) {
-            printf("%s\n", ch);
-            i++;
-            printf("%d\n", i);
-            if (ch != NULL && i == 1 && strstr(ch, "?") != NULL) {parse(ch);};
-            //parse("GET /path/script.cgi?field1=value1&field2=value2 HTTP/1.1");
-            ch = strtok(NULL, "\n");
-        }
+        char buffer[BUFFER_SIZE] = {0};
+        ssize_t bytes_read = socket_read(client_socket, buffer, BUFFER_SIZE - 1);
         
-        char *body = "Hello, world!";
-        char *new_lines = "\n\n";
-        char *payload = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: ";
-        char buf[256];
-        snprintf(buf, sizeof(buf), "%s%ld%s%s", payload, strlen(body), new_lines, body);
-        write(new_socket, buf, strlen(buf));
-        printf("------------------Hello message sent-------------------\n");
-        close(new_socket);
+        if (bytes_read > 0) {
+            // Get the first line (request line)
+            char* request_line = strtok(buffer, "\n");
+            if (request_line) {
+                handle_request(client_socket, request_line);
+            }
+        }
+
+        close_socket(client_socket);
     }
+
+    close_socket(server_fd);
+    free(config);
+    platform_cleanup();
     return 0;
 }
