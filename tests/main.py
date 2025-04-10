@@ -13,12 +13,12 @@ def test_query():
     print(r.text)
 
 def test_post_with_json_payload():
-    r = requests.post('http://127.0.0.1:{PORT}/path'.format(PORT=PORT), json={'number': '12524', 'type': 'issue', 'action': 'show'})
+    r = requests.post('http://127.0.0.1:{PORT}/path'.format(PORT=PORT), json={'number': '12524', 'type': 'issue', 'action': 'show'}, headers={'Content-Type': 'application/json'})
     print(r.status_code)
     print(r.text)
 
 def test_post_with_xml_payload():
-    r = requests.post('http://127.0.0.1:{PORT}/path'.format(PORT=PORT), data="<?xml version='1.0' encoding='utf-8'?>\n<a>\u0431</a>")
+    r = requests.post('http://127.0.0.1:{PORT}/path'.format(PORT=PORT), data="<?xml version='1.0' encoding='utf-8'?>\n<a>\u0431</a>", headers={'Content-Type': 'application/xml'})
     print(r.status_code)
     print(r.text)
 
@@ -37,7 +37,11 @@ def test_python_service():
     print("Python Service Response:", response.json())
 
 if __name__ == "__main__":
-    test_simple_service()
+    test_get()
+    test_query()
+    test_post_with_json_payload()
+    #test_post_with_xml_payload()
+    #test_simple_service()
     #test_nginx_service()
     #test_python_service()
 
