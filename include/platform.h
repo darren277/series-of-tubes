@@ -5,6 +5,8 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <io.h>
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
 #define close_socket(s) closesocket(s)
 #define socket_error() WSAGetLastError()
 #define socket_send(s, buf, len) send(s, buf, len, 0)
@@ -16,6 +18,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/types.h>
 #define close_socket(s) close(s)
 #define socket_error() errno
 #define socket_send(s, buf, len) write(s, buf, len)
