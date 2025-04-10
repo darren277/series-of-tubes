@@ -16,6 +16,8 @@ HttpRequest* parse_http_request(const char* line) {
     request->path = NULL;
     request->query = NULL;
     request->version = NULL;
+    request->body = NULL;
+    request->body_length = 0;
 
     // Find the method
     const char* method_end = strchr(line, ' ');
@@ -88,6 +90,35 @@ error:
     return NULL;
 }
 
+void parse_request_body(HttpRequest* request, const char* raw_request, size_t length) {
+    if (!request || !raw_request || length == 0) return;
+
+    // Find the end of headers (double newline)
+    const char* body_start = strstr(raw_request, "\r\n\r\n");
+    if (!body_start) {
+        body_start = strstr(raw_request, "\n\n");
+        if (!body_start) return;
+        body_start += 2; // Skip the double newline
+    } else {
+        body_start += 4; // Skip the \r\n\r\n
+    }
+
+    // Calculate body length
+    size_t body_len = length - (body_start - raw_request);
+    if (body_len == 0) return;
+
+    // Allocate and copy the body
+    request->body = malloc(body_len + 1);
+    if (!request->body) return;
+    
+    strncpy(request->body, body_start, body_len);
+    request->body[body_len] = '\0';
+    request->body_length = body_len;
+    
+    LOG_REQUEST("Request body length: %zu", body_len);
+    LOG_REQUEST("Request body: %s", request->body);
+}
+
 void free_http_request(HttpRequest* request) {
     if (!request) return;
     
@@ -95,5 +126,6 @@ void free_http_request(HttpRequest* request) {
     free(request->path);
     free(request->query);
     free(request->version);
+    free(request->body);
     free(request);
 } 

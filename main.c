@@ -10,24 +10,51 @@
 #define MAX_CONNECTIONS 10
 #define BUFFER_SIZE 30000
 
-void handle_request(int client_socket, const char* request_line) {
-    LOG_REQUEST("Received request: %s", request_line);
+void handle_request(int client_socket, const char* raw_request, size_t length) {
+    LOG_REQUEST("Received request: %.*s", (int)length, raw_request);
     
+    // Parse the request line (first line)
+    char* request_line = strtok(strdup(raw_request), "\n");
+    if (!request_line) {
+        LOG_ERROR("Empty request line");
+        return;
+    }
+
     HttpRequest* request = parse_http_request(request_line);
     if (!request) {
         LOG_ERROR("Failed to parse request");
         HttpResponse* error_response = create_response(400, "text/plain", "Bad Request");
         send_response(client_socket, error_response);
         free_response(error_response);
+        free(request_line);
         return;
     }
 
-    // Example request handling - you can expand this with more sophisticated routing
+    // Parse the request body if it's a POST request
+    if (strcmp(request->method, "POST") == 0) {
+        parse_request_body(request, raw_request, length);
+    }
+
+    // Handle the request based on method
     if (strcmp(request->method, "GET") == 0) {
         LOG_REQUEST("Handling GET request");
         HttpResponse* response = create_response(200, "text/plain", "Hello, world!");
         send_response(client_socket, response);
         free_response(response);
+    } else if (strcmp(request->method, "POST") == 0) {
+        LOG_REQUEST("Handling POST request");
+        if (request->body) {
+            char response_body[1024];
+            snprintf(response_body, sizeof(response_body), 
+                    "Received POST data: %s", request->body);
+            HttpResponse* response = create_response(200, "text/plain", response_body);
+            send_response(client_socket, response);
+            free_response(response);
+        } else {
+            HttpResponse* response = create_response(200, "text/plain", "POST received but no body");
+            send_response(client_socket, response);
+            free_response(response);
+        }
     } else {
         LOG_ERROR("Unsupported method: %s", request->method);
         HttpResponse* error_response = create_response(405, "text/plain", "Method Not Allowed");
@@ -35,6 +62,7 @@ void handle_request(int client_socket, const char* request_line) {
         free_response(error_response);
     }
 
+    free(request_line);
     free_http_request(request);
 }
 
@@ -80,13 +108,7 @@ int main(void) {
         
         if (bytes_read > 0) {
             LOG_REQUEST("Received %zd bytes of data", bytes_read);
-            // Get the first line (request line)
-            char* request_line = strtok(buffer, "\n");
-            if (request_line) {
-                handle_request(client_socket, request_line);
-            } else {
-                LOG_ERROR("Empty request line");
-            }
+            handle_request(client_socket, buffer, bytes_read);
         } else if (bytes_read == 0) {
             LOG_REQUEST("Client closed connection");
         } else {
