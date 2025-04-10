@@ -24,6 +24,13 @@ typedef struct {
 } HttpResponse;
 
 /**
+ * @brief Check if a port is available
+ * @param port The port to check
+ * @return 0 if port is available, -1 if in use
+ */
+int is_port_available(int port);
+
+/**
  * @brief Initialize server configuration
  * @param port The port to listen on
  * @param max_connections Maximum number of queued connections

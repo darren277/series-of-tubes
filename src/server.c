@@ -13,9 +13,45 @@
 #include <unistd.h>
 #endif
 
+int is_port_available(int port) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        LOG_ERROR("Failed to create test socket");
+        return -1;
+    }
+
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+
+    // Set SO_REUSEADDR to allow immediate reuse of the port
+    int opt = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        LOG_ERROR("Failed to set socket options");
+        close_socket(sock);
+        return -1;
+    }
+
+    int result = bind(sock, (struct sockaddr*)&addr, sizeof(addr));
+    close_socket(sock);
+
+    if (result < 0) {
+        LOG_ERROR("Port %d is already in use", port);
+        return -1;
+    }
+
+    return 0;
+}
+
 ServerConfig* init_server_config(int port, int max_connections) {
     LOG_RESPONSE("Initializing server configuration");
     LOG_RESPONSE("Port: %d, Max Connections: %d", port, max_connections);
+
+    // Check if port is available
+    if (is_port_available(port) < 0) {
+        return NULL;
+    }
 
     ServerConfig* config = malloc(sizeof(ServerConfig));
     if (!config) return NULL;
@@ -37,6 +73,14 @@ int create_server_socket(ServerConfig* config) {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
         LOG_ERROR("Failed to create socket");
+        return -1;
+    }
+
+    // Set SO_REUSEADDR to allow immediate reuse of the port
+    int opt = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        LOG_ERROR("Failed to set socket options");
+        close_socket(server_fd);
         return -1;
     }
 
