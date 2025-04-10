@@ -5,3 +5,5 @@ TEMP_NOTES.md
 
 server
 *.o
+
+.vscode/
