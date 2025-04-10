@@ -7,3 +7,9 @@ server
 *.o
 
 .vscode/
+
+tests/test_runner
+
+tests/unity/unity.c
+tests/unity/unity.h
+tests/unity/unity_internals.h
