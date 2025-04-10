@@ -1,9 +1,12 @@
 #include "../include/http_request.h"
+#include "../include/logging.h"
 #include <string.h>
 #include <stdlib.h>
 
 HttpRequest* parse_http_request(const char* line) {
     if (!line) return NULL;
+
+    LOG_REQUEST("Parsing request line: %s", line);
 
     HttpRequest* request = malloc(sizeof(HttpRequest));
     if (!request) return NULL;
@@ -16,18 +19,25 @@ HttpRequest* parse_http_request(const char* line) {
 
     // Find the method
     const char* method_end = strchr(line, ' ');
-    if (!method_end) goto error;
+    if (!method_end) {
+        LOG_ERROR("Invalid request: missing method");
+        goto error;
+    }
     
     size_t method_len = method_end - line;
     request->method = malloc(method_len + 1);
     if (!request->method) goto error;
     strncpy(request->method, line, method_len);
     request->method[method_len] = '\0';
+    LOG_REQUEST("Method: %s", request->method);
 
     // Find the path
     const char* path_start = method_end + 1;
     const char* path_end = strchr(path_start, ' ');
-    if (!path_end) goto error;
+    if (!path_end) {
+        LOG_ERROR("Invalid request: missing path");
+        goto error;
+    }
 
     // Check for query parameters
     const char* query_start = strchr(path_start, '?');
@@ -38,6 +48,7 @@ HttpRequest* parse_http_request(const char* line) {
         if (!request->path) goto error;
         strncpy(request->path, path_start, path_len);
         request->path[path_len] = '\0';
+        LOG_REQUEST("Path: %s", request->path);
 
         // Query string
         size_t query_len = path_end - query_start;
@@ -45,6 +56,7 @@ HttpRequest* parse_http_request(const char* line) {
         if (!request->query) goto error;
         strncpy(request->query, query_start, query_len);
         request->query[query_len] = '\0';
+        LOG_REQUEST("Query: %s", request->query);
     } else {
         // No query parameters
         size_t path_len = path_end - path_start;
@@ -52,6 +64,7 @@ HttpRequest* parse_http_request(const char* line) {
         if (!request->path) goto error;
         strncpy(request->path, path_start, path_len);
         request->path[path_len] = '\0';
+        LOG_REQUEST("Path: %s", request->path);
     }
 
     // Find the version
@@ -65,10 +78,12 @@ HttpRequest* parse_http_request(const char* line) {
     if (!request->version) goto error;
     strncpy(request->version, version_start, version_len);
     request->version[version_len] = '\0';
+    LOG_REQUEST("HTTP Version: %s", request->version);
 
     return request;
 
 error:
+    LOG_ERROR("Failed to parse request");
     free_http_request(request);
     return NULL;
 }
