@@ -57,6 +57,9 @@ clean:
 format: *.c
 	clang-format -style=Google -i *.c
 
+run:
+	./$(TARGET)
+
 test:
 	python3 tests/main.py
 
