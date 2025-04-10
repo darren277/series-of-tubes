@@ -32,7 +32,7 @@ void handle_request(int client_socket, const char* request_line) {
     free_http_request(request);
 }
 
-int main(int argc, char const *argv[]) {
+int main(void) {
     if (platform_init() != 0) {
         fprintf(stderr, "Failed to initialize platform\n");
         return EXIT_FAILURE;
