@@ -2,3 +2,6 @@ main
 logs/
 
 TEMP_NOTES.md
+
+server
+*.o
