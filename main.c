@@ -10,6 +10,13 @@
 #define MAX_CONNECTIONS 10
 #define BUFFER_SIZE 30000
 
+size_t get_content_length(const char* headers) {
+    const char* content_length = strstr(headers, "Content-Length: ");
+    if (!content_length) return 0;
+    
+    return strtoul(content_length + 15, NULL, 10);
+}
+
 void handle_request(int client_socket, const char* raw_request, size_t length) {
     LOG_REQUEST("Received request: %.*s", (int)length, raw_request);
     
@@ -43,10 +50,13 @@ void handle_request(int client_socket, const char* raw_request, size_t length) {
         free_response(response);
     } else if (strcmp(request->method, "POST") == 0) {
         LOG_REQUEST("Handling POST request");
-        if (request->body) {
+        if (request->body && request->body_length > 0) {
             char response_body[1024];
             snprintf(response_body, sizeof(response_body), 
-                    "Received POST data: %s", request->body);
+                    "Received POST data (length: %zu): %.*s", 
+                    request->body_length,
+                    (int)request->body_length,
+                    request->body);
             HttpResponse* response = create_response(200, "text/plain", response_body);
             send_response(client_socket, response);
             free_response(response);
@@ -108,6 +118,26 @@ int main(void) {
         
         if (bytes_read > 0) {
             LOG_REQUEST("Received %zd bytes of data", bytes_read);
+            
+            // Check if we need to read more data based on Content-Length
+            size_t content_length = get_content_length(buffer);
+            if (content_length > 0) {
+                size_t headers_length = strstr(buffer, "\r\n\r\n") - buffer + 4;
+                if (bytes_read < headers_length + content_length) {
+                    // Read remaining data
+                    ssize_t remaining = headers_length + content_length - bytes_read;
+                    if (remaining > 0 && remaining < BUFFER_SIZE - bytes_read) {
+                        ssize_t additional = socket_read(client_socket, 
+                                                       buffer + bytes_read, 
+                                                       remaining);
+                        if (additional > 0) {
+                            bytes_read += additional;
+                            LOG_REQUEST("Read additional %zd bytes", additional);
+                        }
+                    }
+                }
+            }
+            
             handle_request(client_socket, buffer, bytes_read);
         } else if (bytes_read == 0) {
             LOG_REQUEST("Client closed connection");
